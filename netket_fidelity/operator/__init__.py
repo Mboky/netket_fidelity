@@ -1,4 +1,4 @@
-from .singlequbit_gates import Rx, Ry, Hadamard
+from .singlequbit_gates import Rx, Ry, Hadamard, Hadamard_multi
 
 # from .ising import Ising
 from netket.operator import IsingJax as Ising
