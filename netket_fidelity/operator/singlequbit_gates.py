@@ -1,11 +1,10 @@
 from functools import partial
-import numpy as np
+from itertools import product
 
 import jax
 import jax.numpy as jnp
-
+import numpy as np
 from jax.tree_util import register_pytree_node_class
-
 from netket.operator import DiscreteJaxOperator, spin
 
 
@@ -366,22 +365,26 @@ def get_conns_and_mels_Hadamard_multiple(sigma, idx, local_states):
     # Determine the number of combinations
     num_combinations = 2 ** len(idx)
 
-    # Initialize conns and mels
+    # Initialize conns
     conns = jnp.tile(sigma, (num_combinations, 1))
-    mels = jnp.zeros(num_combinations, dtype=float)
+
+    # Initialize mels with the amplitude factor
+    amplitude_factor = 1 / jnp.sqrt(2 ** len(idx))
+    mels = jnp.full(num_combinations, amplitude_factor, dtype=float)
 
     # Iterate over all combinations of flips
-    for i in range(num_combinations):
-        combination = [idx[j] for j in range(len(idx)) if (i >> j) & 1]
-        for index in combination:
-            current_state = sigma[index]
-            flipped_state = jnp.where(current_state == state_0, state_1, state_0)
+    for i, combination in enumerate(product([state_0, state_1], repeat=len(idx))):
+        phase = 1
+        for j, index in enumerate(idx):
+            original_state = sigma[index]
+            flipped_state = combination[j]
             conns = conns.at[i, index].set(flipped_state)
 
-        # Set mels value
-        mels_value = jnp.prod(
-            jnp.where(conns[i, idx] == local_states[0], 1, -1)
-        ) / jnp.sqrt(2 ** len(idx))
-        mels = mels.at[i].set(mels_value)
+            # Adjust phase for |1> state only using jnp.where
+            phase = jnp.where(original_state == state_1, phase * jnp.where(flipped_state != original_state, -1, 1),
+                              phase)
 
+        # Set the mels value with the correct phase
+        mels = mels.at[i].set(amplitude_factor * phase)
+    mels = jnp.flip(mels)
     return conns, mels
