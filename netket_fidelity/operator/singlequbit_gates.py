@@ -1,12 +1,9 @@
 from functools import partial
 
-import numpy as np
-
 import jax
 import jax.numpy as jnp
-
+import numpy as np
 from jax.tree_util import register_pytree_node_class
-
 from netket.operator import DiscreteJaxOperator, spin
 
 
@@ -285,4 +282,178 @@ def get_conns_and_mels_Hadamard(sigma, idx, local_states):
     mels_value = jnp.where(state_value == local_states[0], 1, -1) / jnp.sqrt(2)
     mels = mels.at[0].set(mels_value)
 
+    return conns, mels
+
+
+@register_pytree_node_class
+class Measure_0(DiscreteJaxOperator):
+    def __init__(self, hi, idx):
+        super().__init__(hi)
+        self._local_states = jnp.asarray(hi.local_states)
+        self._idx = idx
+
+    @property
+    def idx(self):
+        """
+        The qubit id on which this hadamard gate acts upon.
+        """
+        return self._idx
+
+    @property
+    def dtype(self):
+        return np.float64
+
+    @property
+    def H(self):
+        return Hadamard(self.hilbert, self.idx)
+
+    def to_local_operator(self):
+        # sq2 = np.sqrt(2)
+        # return (
+        #     spin.sigmaz(self.hilbert, self.idx) + spin.sigmax(self.hilbert, self.idx)
+        # ) / sq2
+        pass
+
+    def __eq__(self, o):
+        if isinstance(o, Hadamard):
+            return o.idx == self.idx
+        return False
+
+    def tree_flatten(self):
+        children = ()
+        aux_data = (self.hilbert, self.idx)
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*aux_data)
+
+    @property
+    def max_conn_size(self) -> int:
+        return 2
+
+    @jax.jit
+    def get_conn_padded(self, x):
+        xr = x.reshape(-1, x.shape[-1])
+        xp, mels = get_conns_and_mels_measure_0(xr, self.idx, self._local_states)
+        xp = xp.reshape(x.shape[:-1] + xp.shape[-2:])
+        mels = mels.reshape(x.shape[:-1] + mels.shape[-1:])
+        return xp, mels
+
+    @jax.jit
+    def get_conn_flattened(self, x, sections):
+        xp, mels = self.get_conn_padded(x)
+        sections[:] = np.arange(2, mels.size + 2, 2)
+
+        xp = xp.reshape(-1, self.hilbert.size)
+        mels = mels.reshape(
+            -1,
+        )
+        return xp, mels
+
+
+@partial(jax.vmap, in_axes=(0, None, None), out_axes=(0, 0))
+def get_conns_and_mels_measure_0(sigma, idx, local_states):
+    assert sigma.ndim == 1
+    #
+    state_0 = jnp.asarray(local_states[0], dtype=sigma.dtype)
+    state_1 = jnp.asarray(local_states[1], dtype=sigma.dtype)
+    #
+    conns = jnp.tile(sigma, (1, 1))
+    # current_state = sigma[idx]
+    # flipped_state = jnp.where(current_state == state_0, state_1, state_0)
+    conns = conns.at[0, idx].set(state_0)
+    #
+    mels = jnp.zeros(1, dtype=float)
+    mels = mels.at[0].set(state_0)
+    # state_value = conns.at[0, idx].get()
+    # mels_value = jnp.where(state_value == local_states[0], 1, -1) / jnp.sqrt(2)
+    # mels = mels.at[0].set(mels_value)
+    return conns, mels
+
+
+@register_pytree_node_class
+class Measure_1(DiscreteJaxOperator):
+    def __init__(self, hi, idx):
+        super().__init__(hi)
+        self._local_states = jnp.asarray(hi.local_states)
+        self._idx = idx
+
+    @property
+    def idx(self):
+        """
+        The qubit id on which this hadamard gate acts upon.
+        """
+        return self._idx
+
+    @property
+    def dtype(self):
+        return np.float64
+
+    @property
+    def H(self):
+        return Hadamard(self.hilbert, self.idx)
+
+    def to_local_operator(self):
+        # sq2 = np.sqrt(2)
+        # return (
+        #     spin.sigmaz(self.hilbert, self.idx) + spin.sigmax(self.hilbert, self.idx)
+        # ) / sq2
+        pass
+
+    def __eq__(self, o):
+        if isinstance(o, Hadamard):
+            return o.idx == self.idx
+        return False
+
+    def tree_flatten(self):
+        children = ()
+        aux_data = (self.hilbert, self.idx)
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*aux_data)
+
+    @property
+    def max_conn_size(self) -> int:
+        return 2
+
+    @jax.jit
+    def get_conn_padded(self, x):
+        xr = x.reshape(-1, x.shape[-1])
+        xp, mels = get_conns_and_mels_measure_1(xr, self.idx, self._local_states)
+        xp = xp.reshape(x.shape[:-1] + xp.shape[-2:])
+        mels = mels.reshape(x.shape[:-1] + mels.shape[-1:])
+        return xp, mels
+
+    @jax.jit
+    def get_conn_flattened(self, x, sections):
+        xp, mels = self.get_conn_padded(x)
+        sections[:] = np.arange(2, mels.size + 2, 2)
+
+        xp = xp.reshape(-1, self.hilbert.size)
+        mels = mels.reshape(
+            -1,
+        )
+        return xp, mels
+
+
+@partial(jax.vmap, in_axes=(0, None, None), out_axes=(0, 0))
+def get_conns_and_mels_measure_1(sigma, idx, local_states):
+    assert sigma.ndim == 1
+    #
+    state_0 = jnp.asarray(local_states[0], dtype=sigma.dtype)
+    state_1 = jnp.asarray(local_states[1], dtype=sigma.dtype)
+    #
+    conns = jnp.tile(sigma, (1, 1))
+    # current_state = sigma[idx]
+    # flipped_state = jnp.where(current_state == state_0, state_1, state_0)
+    conns = conns.at[0, idx].set(state_1)
+    #
+    mels = jnp.zeros(1, dtype=float)
+    mels = mels.at[0].set(state_1)
+    # state_value = conns.at[0, idx].get()
+    # mels_value = jnp.where(state_value == local_states[0], 1, -1) / jnp.sqrt(2)
+    # mels = mels.at[0].set(mels_value)
     return conns, mels
